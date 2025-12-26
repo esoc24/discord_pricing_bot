@@ -174,9 +174,53 @@ class GamePriceMonitor:
         # Simple text matching
         query_lower = query.lower()
         matches = [game for game in common_games if query_lower in game["name"].lower()]
-        
+
         return matches[:5]  # Return top 5 matches
-    
+
+    async def fetch_steam_wishlist(self, steam_id: str) -> Dict:
+        """
+        Fetch a user's Steam wishlist
+
+        Args:
+            steam_id: Steam ID (64-bit) or custom URL name
+
+        Returns:
+            Dictionary with success status and wishlist data
+        """
+        session = await self.get_session()
+
+        # Try both profile formats - numeric Steam ID and custom URL
+        urls_to_try = [
+            f"https://store.steampowered.com/wishlist/profiles/{steam_id}/wishlistdata/",
+            f"https://store.steampowered.com/wishlist/id/{steam_id}/wishlistdata/"
+        ]
+
+        for url in urls_to_try:
+            try:
+                async with session.get(url) as response:
+                    if response.status == 200:
+                        data = await response.json()
+                        if data:  # Wishlist has items
+                            return {
+                                "success": True,
+                                "wishlist": data,
+                                "count": len(data)
+                            }
+                    elif response.status == 403:
+                        # Profile is private
+                        return {
+                            "success": False,
+                            "error": "Profile is private. Please set your Steam profile to public."
+                        }
+            except Exception as e:
+                logger.error(f"Error fetching wishlist from {url}: {e}")
+                continue
+
+        return {
+            "success": False,
+            "error": "Could not find Steam wishlist. Please check the Steam ID and ensure profile is public."
+        }
+
     def add_to_watchlist(self, user_id: int, steam_app_id: str, game_title: str,
                         channel_id: int, target_price: Optional[float] = None, region: str = "us"):
         """Add a game to user's watchlist"""
@@ -552,6 +596,83 @@ async def show_watchlist_command(interaction: discord.Interaction, region: str =
         )
 
     embed.set_footer(text=f"Region: {region.upper()}")
+    await interaction.followup.send(embed=embed)
+
+@bot.tree.command(name="import-wishlist", description="Import your Steam wishlist to your watchlist")
+@app_commands.describe(
+    steam_id="Your Steam ID (64-bit) or custom URL name",
+    target_price="Optional default target price for all games",
+    region="Region code (e.g., 'us', 'eu', 'uk')"
+)
+async def import_wishlist_command(
+    interaction: discord.Interaction,
+    steam_id: str,
+    target_price: float = None,
+    region: str = "us"
+):
+    """Import Steam wishlist to bot watchlist"""
+    await interaction.response.defer()
+
+    # Fetch Steam wishlist
+    await interaction.followup.send(f"🔍 Fetching Steam wishlist for `{steam_id}`...")
+
+    wishlist_data = await monitor.fetch_steam_wishlist(steam_id)
+
+    if not wishlist_data.get("success"):
+        error_msg = wishlist_data.get("error", "Unknown error occurred")
+        await interaction.followup.send(f"❌ {error_msg}")
+        return
+
+    wishlist = wishlist_data.get("wishlist", {})
+    total_games = len(wishlist)
+
+    if total_games == 0:
+        await interaction.followup.send("Your Steam wishlist is empty!")
+        return
+
+    # Import wishlist games
+    await interaction.followup.send(f"📥 Importing {total_games} games from your wishlist...")
+
+    imported_count = 0
+    skipped_count = 0
+
+    for app_id, game_data in wishlist.items():
+        try:
+            game_name = game_data.get("name", f"Game {app_id}")
+
+            # Add to watchlist
+            monitor.add_to_watchlist(
+                interaction.user.id,
+                app_id,
+                game_name,
+                interaction.channel.id,
+                target_price,
+                region
+            )
+            imported_count += 1
+
+        except Exception as e:
+            logger.error(f"Error importing game {app_id}: {e}")
+            skipped_count += 1
+
+    # Send summary
+    embed = discord.Embed(
+        title="✅ Wishlist Import Complete",
+        color=0x00ff00
+    )
+    embed.add_field(name="Total Games", value=str(total_games), inline=True)
+    embed.add_field(name="Imported", value=str(imported_count), inline=True)
+    embed.add_field(name="Skipped", value=str(skipped_count), inline=True)
+
+    if target_price:
+        embed.add_field(
+            name="Target Price",
+            value=f"${target_price} (applied to all games)",
+            inline=False
+        )
+
+    embed.set_footer(text=f"Region: {region.upper()} | Use /watchlist to view your games")
+
     await interaction.followup.send(embed=embed)
 
 @tasks.loop(minutes=30)

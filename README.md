@@ -7,6 +7,7 @@ A Discord bot for monitoring Steam game prices using the [gg.deals API](https://
 - **Slash Commands** - Modern Discord slash command interface
 - **Price Monitoring** - Track current retail and keyshop prices for any Steam game
 - **Watchlists** - Set target prices and get notified when games go on sale
+- **Steam Wishlist Import** - Instantly import your entire Steam wishlist with one command
 - **Persistent Storage** - SQLite database keeps your watchlists safe across restarts
 - **Background Alerts** - Automated price checking every 30 minutes
 - **Price Caching** - 5-minute cache reduces API calls and improves performance
@@ -22,6 +23,7 @@ A Discord bot for monitoring Steam game prices using the [gg.deals API](https://
 | `/watch <steam_app_id> [target_price] [region]` | Add a game to your watchlist |
 | `/unwatch <steam_app_id>` | Remove a game from your watchlist |
 | `/watchlist [region]` | View all games on your watchlist |
+| `/import-wishlist <steam_id> [target_price] [region]` | Import your Steam wishlist to watchlist |
 | `/apitest` | Test API connection (admin only) |
 
 ## Installation
@@ -111,6 +113,18 @@ Displays all games you're watching with current prices
 /search Portal
 ```
 Searches for games matching "Portal" (limited to common games)
+
+### Import your Steam wishlist
+```
+/import-wishlist 76561197960287930 9.99
+```
+Imports all games from your Steam wishlist with a $9.99 target price. Your Steam profile must be public.
+
+**Finding your Steam ID:**
+- Go to your Steam profile URL
+- Your Steam ID is the number after `/profiles/` or your custom URL name after `/id/`
+- Example: `https://steamcommunity.com/profiles/76561197960287930` → Steam ID is `76561197960287930`
+- Example: `https://steamcommunity.com/id/username` → Steam ID is `username`
 
 ## Project Structure
 

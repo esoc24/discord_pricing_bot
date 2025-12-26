@@ -128,6 +128,7 @@ All commands use Discord's slash command system (`@bot.tree.command`):
 - `/watch <steam_app_id> [target_price] [region] [game_name]` - Add to watchlist
 - `/unwatch <steam_app_id>` - Remove from watchlist
 - `/watchlist [region]` - Show all watched games with current prices
+- `/import-wishlist <steam_id> [target_price] [region]` - Import Steam wishlist
 - `/apitest` - Test API connection (admin only)
 
 Commands sync automatically on bot startup via `bot.tree.sync()`.
@@ -149,6 +150,21 @@ Price comparison logic: Uses lower of retail/keyshop as "best price".
 - Integrate Steam Web API
 - Use third-party game database
 - Maintain local SQLite game catalog
+
+### Steam Wishlist Import
+
+`fetch_steam_wishlist()` method (lines 180-222) fetches a user's Steam wishlist:
+- Uses Steam Store endpoint: `https://store.steampowered.com/wishlist/profiles/{steam_id}/wishlistdata/`
+- Supports both numeric Steam IDs (64-bit) and custom URL names
+- Tries both `/profiles/{id}/` and `/id/{id}/` URL formats
+- Requires the Steam profile to be public
+- Returns JSON with app IDs and game names
+
+The `/import-wishlist` command:
+- Fetches all games from Steam wishlist
+- Bulk imports to bot watchlist with optional target price
+- Shows import summary with success/skip counts
+- All imported games are added to the database with same region and target price
 
 ### Data Flow Example
 
