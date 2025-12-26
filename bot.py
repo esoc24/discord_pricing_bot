@@ -732,7 +732,9 @@ async def price_check_task():
                 if target_price and best_price <= target_price:
                     channel = bot.get_channel(watcher['channel_id'])
                     if channel:
-                        user = bot.get_user(watcher['user_id'])
+                        user_id = watcher['user_id']
+                        user = bot.get_user(user_id)
+
                         embed = discord.Embed(
                             title="🚨 Price Alert!",
                             description=f"**{watcher['game_title']}** has reached your target price!",
@@ -753,7 +755,7 @@ async def price_check_task():
                             value=f"`{steam_app_id}`",
                             inline=True
                         )
-                        
+
                         game_url = game_data.get("url")
                         if game_url:
                             embed.add_field(
@@ -761,10 +763,14 @@ async def price_check_task():
                                 value=f"[gg.deals page]({game_url})",
                                 inline=False
                             )
-                        
+
                         try:
-                            await channel.send(f"{user.mention}", embed=embed)
-                            logger.info(f"Sent price alert for {watcher['game_title']} to {user.name}")
+                            # Use user_id format for mention if user object not in cache
+                            user_mention = user.mention if user else f"<@{user_id}>"
+                            await channel.send(user_mention, embed=embed)
+
+                            user_display = user.name if user else f"User {user_id}"
+                            logger.info(f"Sent price alert for {watcher['game_title']} to {user_display}")
                         except Exception as e:
                             logger.error(f"Failed to send alert: {e}")
         
