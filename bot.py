@@ -33,6 +33,7 @@ load_env_file()
 # Bot configuration from environment variables
 BOT_TOKEN = os.getenv("BOT_TOKEN")
 GGDEALS_API_KEY = os.getenv("GGDEALS_API_KEY")
+STEAM_API_KEY = os.getenv("STEAM_API_KEY")
 
 # Initialize bot
 intents = discord.Intents.default()
@@ -177,9 +178,38 @@ class GamePriceMonitor:
 
         return matches[:5]  # Return top 5 matches
 
+    async def resolve_vanity_url(self, vanity_url: str) -> Optional[str]:
+        """
+        Resolve a Steam vanity URL (custom name) to a 64-bit Steam ID
+
+        Args:
+            vanity_url: Steam custom URL name (e.g., 'et24')
+
+        Returns:
+            64-bit Steam ID if found, None otherwise
+        """
+        session = await self.get_session()
+
+        url = "https://api.steampowered.com/ISteamUser/ResolveVanityURL/v1/"
+        params = {
+            'key': STEAM_API_KEY,
+            'vanityurl': vanity_url
+        }
+
+        try:
+            async with session.get(url, params=params) as response:
+                if response.status == 200:
+                    data = await response.json()
+                    if data.get('response', {}).get('success') == 1:
+                        return data['response']['steamid']
+        except Exception as e:
+            logger.error(f"Error resolving vanity URL: {e}")
+
+        return None
+
     async def fetch_steam_wishlist(self, steam_id: str) -> Dict:
         """
-        Fetch a user's Steam wishlist
+        Fetch a user's Steam wishlist using official Steam Web API
 
         Args:
             steam_id: Steam ID (64-bit) or custom URL name
@@ -189,38 +219,81 @@ class GamePriceMonitor:
         """
         session = await self.get_session()
 
-        # Try both profile formats - numeric Steam ID and custom URL
-        # Note: The endpoint requires ?p=0 for pagination (page 0)
-        urls_to_try = [
-            f"https://store.steampowered.com/wishlist/profiles/{steam_id}/wishlistdata/?p=0",
-            f"https://store.steampowered.com/wishlist/id/{steam_id}/wishlistdata/?p=0"
-        ]
+        # If not a 64-bit numeric ID, try to resolve as vanity URL
+        resolved_steam_id = steam_id
+        if not steam_id.isdigit() or len(steam_id) < 17:
+            logger.info(f"Attempting to resolve vanity URL: {steam_id}")
+            resolved_id = await self.resolve_vanity_url(steam_id)
+            if resolved_id:
+                resolved_steam_id = resolved_id
+                logger.info(f"Resolved to Steam ID: {resolved_steam_id}")
+            else:
+                return {
+                    "success": False,
+                    "error": f"Could not resolve Steam ID '{steam_id}'. Please use your 64-bit Steam ID or check that the custom URL is correct."
+                }
 
-        for url in urls_to_try:
-            try:
-                async with session.get(url) as response:
-                    if response.status == 200:
-                        data = await response.json()
-                        if data:  # Wishlist has items
+        # Use official Steam Web API to get wishlist
+        url = "https://api.steampowered.com/IWishlistService/GetWishlist/v1/"
+        params = {
+            'key': STEAM_API_KEY,
+            'steamid': resolved_steam_id
+        }
+
+        try:
+            async with session.get(url, params=params) as response:
+                if response.status == 200:
+                    data = await response.json()
+
+                    # Check if API call was successful
+                    if 'response' in data:
+                        wishlist_items = data['response'].get('items', [])
+
+                        if wishlist_items:
+                            # Convert to format compatible with our import code
+                            # API returns list of items with appid field
+                            wishlist_dict = {}
+                            for item in wishlist_items:
+                                app_id = str(item.get('appid', ''))
+                                if app_id:
+                                    wishlist_dict[app_id] = {
+                                        'name': item.get('name', f'Game {app_id}')
+                                    }
+
                             return {
                                 "success": True,
-                                "wishlist": data,
-                                "count": len(data)
+                                "wishlist": wishlist_dict,
+                                "count": len(wishlist_dict)
                             }
-                    elif response.status == 403:
-                        # Profile is private
+                        else:
+                            return {
+                                "success": False,
+                                "error": "Wishlist is empty or could not be retrieved. Make sure your profile's game details are set to public."
+                            }
+                    else:
                         return {
                             "success": False,
-                            "error": "Profile is private. Please set your Steam profile to public."
+                            "error": "Invalid response from Steam API. Please try again later."
                         }
-            except Exception as e:
-                logger.error(f"Error fetching wishlist from {url}: {e}")
-                continue
+                elif response.status == 403:
+                    return {
+                        "success": False,
+                        "error": "Access denied. Please set your Steam profile's game details to public."
+                    }
+                else:
+                    error_text = await response.text()
+                    logger.error(f"Steam API error {response.status}: {error_text}")
+                    return {
+                        "success": False,
+                        "error": f"Steam API error (status {response.status}). Please try again later."
+                    }
 
-        return {
-            "success": False,
-            "error": "Could not find Steam wishlist. Please check the Steam ID and ensure profile is public."
-        }
+        except Exception as e:
+            logger.error(f"Error fetching wishlist: {e}")
+            return {
+                "success": False,
+                "error": f"Error connecting to Steam API: {str(e)}"
+            }
 
     def add_to_watchlist(self, user_id: int, steam_app_id: str, game_title: str,
                         channel_id: int, target_price: Optional[float] = None, region: str = "us"):
@@ -882,6 +955,11 @@ if __name__ == "__main__":
         logger.error("❌ GGDEALS_API_KEY environment variable not set")
         logger.error("Please set GGDEALS_API_KEY in your environment or create a .env file")
         exit(1)
+
+    if not STEAM_API_KEY:
+        logger.warning("⚠️  STEAM_API_KEY environment variable not set")
+        logger.warning("Steam wishlist import (/import-wishlist) will not work without a Steam API key")
+        logger.warning("Get your key at: https://steamcommunity.com/dev/apikey")
 
     logger.info("🚀 Starting Discord Game Price Monitor Bot...")
     bot.run(BOT_TOKEN)

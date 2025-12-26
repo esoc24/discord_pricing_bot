@@ -34,6 +34,7 @@ A Discord bot for monitoring Steam game prices using the [gg.deals API](https://
 - Python 3.8 or higher
 - Discord Bot Token ([Get one here](https://discord.com/developers/applications))
 - gg.deals API Key ([Get one here](https://gg.deals/api/))
+- Steam Web API Key ([Get one here](https://steamcommunity.com/dev/apikey)) - Required for wishlist import
 
 ### Setup
 
@@ -83,6 +84,7 @@ The bot uses environment variables for configuration. See `.env.example` for all
 **Required:**
 - `BOT_TOKEN` - Your Discord bot token
 - `GGDEALS_API_KEY` - Your gg.deals API key
+- `STEAM_API_KEY` - Your Steam Web API key (required for `/import-wishlist` command)
 
 **Optional:**
 - Database file location (default: `game_watchlist.db`)

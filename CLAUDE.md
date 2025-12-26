@@ -40,6 +40,7 @@ The bot uses environment variables for credentials (loaded from `.env` file or s
 **Required environment variables:**
 - `BOT_TOKEN` - Discord bot token from [Discord Developer Portal](https://discord.com/developers/applications)
 - `GGDEALS_API_KEY` - API key from [gg.deals API](https://gg.deals/api/)
+- `STEAM_API_KEY` - Steam Web API key from [Steam Dev Portal](https://steamcommunity.com/dev/apikey) - required for wishlist import
 
 **Setting up credentials:**
 
@@ -154,21 +155,37 @@ Price comparison logic: Uses lower of retail/keyshop as "best price".
 
 ### Steam Wishlist Import
 
-`fetch_steam_wishlist()` method (lines 180-223) fetches a user's Steam wishlist:
-- Uses Steam Store endpoint: `https://store.steampowered.com/wishlist/profiles/{steam_id}/wishlistdata/?p=0`
-- The `?p=0` parameter specifies page 0 for pagination (first ~100 games)
-- Supports both numeric Steam IDs (64-bit) and custom URL names
-- Tries both `/profiles/{id}/` and `/id/{id}/` URL formats
-- Requires the Steam profile to be public
-- Returns JSON with app IDs and game names
+**API Methods:**
+
+`resolve_vanity_url()` method (lines 181-208):
+- Converts custom Steam URLs (e.g., "et24") to 64-bit Steam IDs
+- Uses `ISteamUser/ResolveVanityURL/v1` API endpoint
+- Requires Steam API key
+
+`fetch_steam_wishlist()` method (lines 210-296):
+- Uses official Steam Web API: `IWishlistService/GetWishlist/v1`
+- Requires Steam API key (configured in `.env`)
+- Automatically resolves custom URLs to Steam IDs
+- Returns all wishlist items (no pagination limit)
+- Handles privacy settings and error cases
 
 The `/import-wishlist` command:
-- Fetches all games from Steam wishlist (first page, ~100 games)
+- Accepts Steam ID (64-bit) or custom URL name (e.g., "et24")
+- Resolves vanity URLs automatically
+- Fetches entire wishlist using official API
 - Bulk imports to bot watchlist with optional target price
 - Shows import summary with success/skip counts
 - All imported games are added to the database with same region and target price
 
-**Note:** Currently imports only first page of wishlist (~100 games). For larger wishlists, pagination support could be added.
+**Requirements:**
+- Steam Web API key from https://steamcommunity.com/dev/apikey
+- User's Steam profile game details must be public
+
+**API Advantages:**
+- No pagination limits (gets entire wishlist)
+- Officially supported by Valve
+- Works with both numeric IDs and custom URLs
+- Better privacy handling
 
 ### Data Flow Example
 
