@@ -44,7 +44,7 @@ A Discord bot for monitoring Steam game prices using the [gg.deals API](https://
 
 2. **Install dependencies**
    ```bash
-   pip3 install discord.py aiohttp
+   pip3 install -r requirements.txt
    ```
 
 3. **Configure environment variables**
@@ -131,6 +131,7 @@ Imports all games from your Steam wishlist with a $9.99 target price. Your Steam
 ```
 discord-bot-pricing/
 ├── bot.py              # Main bot file (slash commands, database, API)
+├── requirements.txt    # Python dependencies
 ├── CLAUDE.md           # Detailed technical documentation
 ├── .env.example        # Environment variable template
 ├── .gitignore          # Git ignore rules

@@ -1,0 +1,8 @@
+# Discord Bot Dependencies
+# Install with: pip install -r requirements.txt
+
+# Discord.py - Discord API wrapper with slash command support
+discord.py>=2.0.0
+
+# aiohttp - Async HTTP client for API requests
+aiohttp>=3.8.0

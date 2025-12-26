@@ -12,7 +12,7 @@ Discord bot for monitoring Steam game prices using the gg.deals API. Users can s
 
 1. Install required packages:
 ```bash
-pip3 install discord.py aiohttp
+pip3 install -r requirements.txt
 ```
 
 2. Configure environment variables:
