@@ -190,9 +190,10 @@ class GamePriceMonitor:
         session = await self.get_session()
 
         # Try both profile formats - numeric Steam ID and custom URL
+        # Note: The endpoint requires ?p=0 for pagination (page 0)
         urls_to_try = [
-            f"https://store.steampowered.com/wishlist/profiles/{steam_id}/wishlistdata/",
-            f"https://store.steampowered.com/wishlist/id/{steam_id}/wishlistdata/"
+            f"https://store.steampowered.com/wishlist/profiles/{steam_id}/wishlistdata/?p=0",
+            f"https://store.steampowered.com/wishlist/id/{steam_id}/wishlistdata/?p=0"
         ]
 
         for url in urls_to_try:
@@ -684,6 +685,71 @@ async def import_wishlist_command(
     embed.set_footer(text=f"Region: {region.upper()} | Use /watchlist to view your games")
 
     await interaction.followup.send(embed=embed)
+
+@bot.tree.command(name="help", description="Show all available commands and how to use them")
+async def help_command(interaction: discord.Interaction):
+    """Display help information about bot commands"""
+    embed = discord.Embed(
+        title="🎮 Game Price Monitor - Help",
+        description="Monitor Steam game prices and get notified when they drop!",
+        color=0x9932cc
+    )
+
+    # Search command
+    embed.add_field(
+        name="/search <query>",
+        value="Search for games by name (limited to popular games)\nExample: `/search Portal`",
+        inline=False
+    )
+
+    # Prices command
+    embed.add_field(
+        name="/prices <steam_app_id> [region]",
+        value="Get current and historical prices for a game\nExample: `/prices 730` or `/prices 730 eu`",
+        inline=False
+    )
+
+    # Watch command
+    embed.add_field(
+        name="/watch <steam_app_id> [target_price] [region] [game_name]",
+        value="Add a game to your watchlist with optional target price\nExample: `/watch 292030 9.99`",
+        inline=False
+    )
+
+    # Unwatch command
+    embed.add_field(
+        name="/unwatch <steam_app_id>",
+        value="Remove a game from your watchlist\nExample: `/unwatch 292030`",
+        inline=False
+    )
+
+    # Watchlist command
+    embed.add_field(
+        name="/watchlist [region]",
+        value="View all games on your watchlist with current prices\nExample: `/watchlist` or `/watchlist eu`",
+        inline=False
+    )
+
+    # Import wishlist command
+    embed.add_field(
+        name="/import-wishlist <steam_id> [target_price] [region]",
+        value="Import your entire Steam wishlist (profile must be public)\nExample: `/import-wishlist 76561197960287930 9.99`\nFind your Steam ID in your profile URL",
+        inline=False
+    )
+
+    # API test command
+    embed.add_field(
+        name="/apitest",
+        value="Test API connection (admin only)",
+        inline=False
+    )
+
+    # Footer with additional info
+    embed.set_footer(
+        text="💡 Tip: Price alerts check every 30 minutes. Find Steam App IDs on SteamDB or Steam store URLs."
+    )
+
+    await interaction.response.send_message(embed=embed)
 
 @tasks.loop(minutes=30)
 async def price_check_task():

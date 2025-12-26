@@ -18,6 +18,7 @@ A Discord bot for monitoring Steam game prices using the [gg.deals API](https://
 
 | Command | Description |
 |---------|-------------|
+| `/help` | Show all available commands with examples |
 | `/search <query>` | Search for games by name |
 | `/prices <steam_app_id> [region]` | Get current prices for a Steam game |
 | `/watch <steam_app_id> [target_price] [region]` | Add a game to your watchlist |

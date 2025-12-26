@@ -123,6 +123,7 @@ Price cache: 5-minute in-memory cache (`self.price_cache`) to reduce API calls.
 **Slash Commands**
 
 All commands use Discord's slash command system (`@bot.tree.command`):
+- `/help` - Show all commands with examples and descriptions
 - `/search <query>` - Search hardcoded game list (not real search)
 - `/prices <steam_app_id> [region]` - Get current and historical prices
 - `/watch <steam_app_id> [target_price] [region] [game_name]` - Add to watchlist
@@ -153,18 +154,21 @@ Price comparison logic: Uses lower of retail/keyshop as "best price".
 
 ### Steam Wishlist Import
 
-`fetch_steam_wishlist()` method (lines 180-222) fetches a user's Steam wishlist:
-- Uses Steam Store endpoint: `https://store.steampowered.com/wishlist/profiles/{steam_id}/wishlistdata/`
+`fetch_steam_wishlist()` method (lines 180-223) fetches a user's Steam wishlist:
+- Uses Steam Store endpoint: `https://store.steampowered.com/wishlist/profiles/{steam_id}/wishlistdata/?p=0`
+- The `?p=0` parameter specifies page 0 for pagination (first ~100 games)
 - Supports both numeric Steam IDs (64-bit) and custom URL names
 - Tries both `/profiles/{id}/` and `/id/{id}/` URL formats
 - Requires the Steam profile to be public
 - Returns JSON with app IDs and game names
 
 The `/import-wishlist` command:
-- Fetches all games from Steam wishlist
+- Fetches all games from Steam wishlist (first page, ~100 games)
 - Bulk imports to bot watchlist with optional target price
 - Shows import summary with success/skip counts
 - All imported games are added to the database with same region and target price
+
+**Note:** Currently imports only first page of wishlist (~100 games). For larger wishlists, pagination support could be added.
 
 ### Data Flow Example
 
