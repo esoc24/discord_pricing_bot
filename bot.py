@@ -310,8 +310,18 @@ async def on_ready():
 
     # Sync slash commands
     try:
+        # Global sync (can take up to 1 hour to propagate)
         synced = await bot.tree.sync()
-        logger.info(f"Synced {len(synced)} slash command(s)")
+        logger.info(f"Synced {len(synced)} slash command(s) globally")
+
+        # Also sync to each guild for instant updates (optional but faster for testing)
+        for guild in bot.guilds:
+            try:
+                guild_synced = await bot.tree.sync(guild=guild)
+                logger.info(f"Synced {len(guild_synced)} command(s) to guild: {guild.name} (ID: {guild.id})")
+            except Exception as guild_error:
+                logger.error(f"Failed to sync to guild {guild.name}: {guild_error}")
+
     except Exception as e:
         logger.error(f"Failed to sync commands: {e}")
 
